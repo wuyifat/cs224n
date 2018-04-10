@@ -21,8 +21,8 @@ class PartialParse(object):
         self.sentence = sentence
 
         ### YOUR CODE HERE
-        self.stack = sentence.copy()
-        self.buffer = ['ROOT']
+        self.buffer = sentence[:]
+        self.stack = ['ROOT']
         self.dependencies = []
 
         ### END YOUR CODE
@@ -37,10 +37,16 @@ class PartialParse(object):
         """
         ### YOUR CODE HERE
         if transition == 'S':
-            self.stack.append(self.buffer[0])
-            del self.buffer[0]
+            self.stack.append(self.buffer.pop(0))
         elif transition == 'LA':
-            self.dependencies.append(self.stack[-1], self.stack[-2])
+            self.dependencies.append((self.stack[-1], self.stack[-2]))
+            del self.stack[-2]
+        elif transition == 'RA':
+            self.dependencies.append((self.stack[-2], self.stack[-1]))
+            del self.stack[-1]
+        else:
+            print 'transition type not resolved.'
+
         ### END YOUR CODE
 
     def parse(self, transitions):
@@ -75,6 +81,24 @@ def minibatch_parse(sentences, model, batch_size):
     """
 
     ### YOUR CODE HERE
+    partial_parses = [PartialParse(s) for s in sentences]
+    todo_parses = partial_parses
+
+    # while todo_parses:
+    #     minibatch = todo_parses[:batch_size]
+    #     while minibatch:
+    #         transitions = model.predict(minibatch)
+    #         for i,transition in enumerate(transitions):
+    #             minibatch[i].parse_step(transition)
+    #         minibatch = [parse for parse in minibatch if len(parse.stack)>1 or len(parse.buffer)>0]
+    #     todo_parses = todo_parses[batch_size:]
+
+    while len(todo_parses) > 0:
+        transitions = model.predict(todo_parses[:batch_size])
+        for i in range(min(batch_size, len(todo_parses))):
+            todo_parses[i].parse_step(transitions[i])
+        todo_parses = [p for p in todo_parses if len(p.stack)>1 or len(p.buffer)>0]
+    dependencies = [p.dependencies for p in partial_parses]
     ### END YOUR CODE
 
     return dependencies
